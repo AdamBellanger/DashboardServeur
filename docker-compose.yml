@@ -1,0 +1,47 @@
+services:
+  status:
+    build: .
+    image: adam-bellanger-status:latest
+    container_name: status
+    restart: unless-stopped
+    env_file:
+      - .env
+    # No published port: Nginx Proxy Manager reaches it by container name
+    # over the shared network (Forward Hostname: status, Port: 3000).
+    expose:
+      - "3000"
+    networks:
+      - services_default
+    # Hardening: no privilege escalation, no Linux capabilities (port 3000
+    # needs none), bounded memory, rotated logs so they can't fill the disk.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # One-off database tasks, never started by `docker compose up`:
+  #   docker compose run --rm migrate                      apply migrations
+  #   docker compose run --rm migrate npm run db:seed      load seed-data.ts
+  migrate:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: build
+    image: adam-bellanger-status:build
+    env_file:
+      - .env
+    command: ["npx", "drizzle-kit", "migrate"]
+    networks:
+      - services_default
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  services_default:
+    external: true
