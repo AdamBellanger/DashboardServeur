@@ -27,7 +27,8 @@ export const seedIncidents: SeedIncident[] = [
     status: "investigating",
     // Day known, time of day not: midnight Paris time until it's filled in.
     startedAt: "2026-09-03T00:00:00+02:00",
-    // TODO: set resolvedAt and status "resolved" once Hetzner support has answered.
+    // Still open: no answer from Hetzner support yet. Set resolvedAt and status
+    // "resolved" once they answer.
     resolvedAt: null,
     services: ["server", "ssh", "web"],
     tags: ["network"],
@@ -58,12 +59,12 @@ La machine était saine et ses services à l'écoute : le blocage se situait en 
 
 ## Hypothèse retenue
 
-Blocage réseau ou null-route appliqué côté Hetzner, probablement à la suite d'un abus détecté. L'hypothèse fait écho à un avertissement de sécurité antérieur, concernant une instance PostgreSQL exposée publiquement.
+Blocage réseau ou null-route appliqué côté Hetzner, probablement à la suite d'un abus détecté.
 
 ## Actions
 
 - Ticket ouvert auprès du support Hetzner.
-- En attente de leur retour pour confirmer la cause.`,
+- Toujours aucune réponse du support à ce jour : la cause reste à confirmer.`,
     },
     en: {
       title: "Server unreachable from the outside",
@@ -92,110 +93,12 @@ The machine was healthy and its services were listening: the block was upstream 
 
 ## Working hypothesis
 
-A network block or null-route applied on Hetzner's side, probably after detected abuse. This echoes an earlier security warning about a publicly exposed PostgreSQL instance.
+A network block or null-route applied on Hetzner's side, probably after detected abuse.
 
 ## Actions
 
 - Ticket opened with Hetzner support.
-- Waiting for their answer to confirm the cause.`,
-    },
-  },
-  {
-    slug: "postgresql-expose",
-    severity: "major",
-    status: "resolved",
-    // TODO: date of Hetzner's warning (it's in their email).
-    startedAt: null,
-    resolvedAt: null,
-    services: ["postgresql"],
-    tags: ["security"],
-    fr: {
-      title: "Instance PostgreSQL exposée publiquement",
-      summary:
-        "Hetzner a signalé une instance PostgreSQL accessible depuis Internet sans authentification suffisante.",
-      body: `## Signalement
-
-Hetzner a signalé qu'une instance PostgreSQL du serveur était accessible publiquement depuis Internet, sans authentification suffisante.
-
-## Risque
-
-Une base exposée de cette façon peut être lue, modifiée ou servir de point d'entrée à n'importe qui sur Internet. C'est aussi le type de situation qui déclenche des mesures de la part de l'hébergeur.
-
-## Résolution
-
-L'exposition a été corrigée et l'incident est clos.
-
-## Suite
-
-Ce signalement est la piste principale derrière l'incident du 3 septembre 2026, où le serveur est devenu injoignable depuis l'extérieur.`,
-    },
-    en: {
-      title: "PostgreSQL instance publicly exposed",
-      summary:
-        "Hetzner reported a PostgreSQL instance reachable from the Internet without sufficient authentication.",
-      body: `## Report
-
-Hetzner reported that a PostgreSQL instance on the server was publicly reachable from the Internet, without sufficient authentication.
-
-## Risk
-
-A database exposed this way can be read, modified or used as an entry point by anyone on the Internet. It's also the kind of situation that makes a hosting provider take action.
-
-## Resolution
-
-The exposure was fixed and the incident is closed.
-
-## Follow-up
-
-This report is the main lead behind the 3 September 2026 incident, when the server became unreachable from the outside.`,
-    },
-  },
-  {
-    slug: "perte-acces-ssh",
-    severity: "minor",
-    status: "resolved",
-    // TODO: approximate date.
-    startedAt: null,
-    resolvedAt: null,
-    services: ["ssh"],
-    tags: ["security"],
-    fr: {
-      title: "Perte temporaire de l'accès SSH",
-      summary:
-        "Clé SSH indisponible depuis un poste secondaire ; accès rétabli via la console VNC de Hetzner.",
-      body: `## Contexte
-
-En travaillant depuis un PC secondaire, la clé SSH autorisée sur le serveur n'était pas disponible : impossible de se connecter en SSH.
-
-## Récupération
-
-- Connexion au serveur par la console VNC de Hetzner, qui ne dépend pas de SSH.
-- Opération compliquée par un décalage de disposition clavier AZERTY / QWERTY dans la console, qui faussait la saisie des commandes et des mots de passe.
-- Accès SSH rétabli ensuite.
-
-## Points retenus
-
-- Garder une procédure d'accès de secours documentée, et la tester avant d'en avoir besoin.
-- Anticiper la disposition clavier de la console VNC.`,
-    },
-    en: {
-      title: "Temporary loss of SSH access",
-      summary:
-        "SSH key unavailable from a secondary computer; access restored through Hetzner's VNC console.",
-      body: `## Context
-
-While working from a secondary computer, the SSH key authorised on the server wasn't available: SSH login was impossible.
-
-## Recovery
-
-- Logged in through Hetzner's VNC console, which doesn't depend on SSH.
-- Made harder by an AZERTY / QWERTY keyboard layout mismatch in the console, which garbled commands and passwords.
-- SSH access restored afterwards.
-
-## Takeaways
-
-- Keep a documented fallback access procedure, and test it before it's needed.
-- Plan for the VNC console's keyboard layout.`,
+- Still no answer from support so far: the cause remains unconfirmed.`,
     },
   },
 ];

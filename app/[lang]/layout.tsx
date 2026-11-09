@@ -72,6 +72,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   const t = getDictionary(lang);
   const labels: Record<string, string> = {
     [href(lang, "home")]: t.nav.home,
+    [href(lang, "dashboard")]: t.nav.dashboard,
     [href(lang, "incidents")]: t.nav.incidents,
     [href(lang, "about")]: t.nav.about,
   };

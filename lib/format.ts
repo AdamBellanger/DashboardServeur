@@ -63,3 +63,26 @@ export function formatNumber(value: number, locale: Locale, digits = 0) {
     maximumFractionDigits: digits,
   }).format(value);
 }
+
+const BYTE_UNITS = {
+  fr: ["o", "Ko", "Mo", "Go", "To"],
+  en: ["B", "KB", "MB", "GB", "TB"],
+} as const;
+
+/** 6 657 199 308 → "6,2 Go" (fr) / "6.2 GB" (en), binary multiples. */
+export function formatBytes(bytes: number, locale: Locale) {
+  const units = BYTE_UNITS[locale];
+  let value = Math.abs(bytes);
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  const digits = unit === 0 || value >= 100 ? 0 : 1;
+  return `${bytes < 0 ? "-" : ""}${formatNumber(value, locale, digits)} ${units[unit]}`;
+}
+
+/** Throughput: "1,2 Mo/s" / "1.2 MB/s". */
+export function formatRate(bytesPerSecond: number, locale: Locale) {
+  return `${formatBytes(bytesPerSecond, locale)}/s`;
+}

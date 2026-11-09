@@ -8,3 +8,6 @@ npm-debug.log*
 Dockerfile
 docker-compose.yml
 *.md
+docker-compose.dev.yml
+scripts
+dev

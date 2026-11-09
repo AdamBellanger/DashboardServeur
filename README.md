@@ -27,22 +27,27 @@ Navigateur ──► status (Next.js) ──► Uptime Kuma   /api/status-page/<
 | État live de chaque service, latence | Uptime Kuma, page de statut publique (aucun token) |
 | Bandes de disponibilité 90 j, uptime 30/90 j, latence 24 h | Prometheus, métriques `/metrics` d'Uptime Kuma |
 | CPU, mémoire, disque, uptime serveur | Prometheus, Node Exporter |
+| Dashboard : charge, mémoire et disque en octets, tendance du disque, réseau, connexions TCP | Prometheus, Node Exporter |
+| Dashboard : jours sans incident, résolution moyenne, répartition par gravité | PostgreSQL, calculé depuis les incidents |
 | Incidents | PostgreSQL (Drizzle) : ouverts/fermés automatiquement par le webhook Uptime Kuma, ou écrits à la main |
 
 ## Structure
 
 ```
 app/[lang]/                 pages (FR à la racine, EN sous /en, réécrit par proxy.ts)
-  page.tsx                  dashboard
+  page.tsx                  accueil : verdict, services, serveur, derniers incidents
+  dashboard/                dashboard bento (/dashboard) : toutes les statistiques
   incidents/                flux + détail /incidents/[slug]
   a-propos/                 page Infra (/en/about)
-app/api/                    status · metrics · health · webhooks/uptime-kuma
+app/api/                    status · metrics · dashboard · health · webhooks/uptime-kuma
 components/layout|ui|providers   repris du portfolio (nav, rideau, curseur, Lenis…)
-components/status/          Dashboard, bandes de dispo, sparklines
+components/status/          accueil, bandes de dispo, sparklines
+components/dashboard/       grille bento de /dashboard
 components/incidents/       flux, filtres, rendu Markdown
 content/                    site.ts · services.ts (services affichés) · i18n/ui.ts
 lib/uptime-kuma.ts          client Uptime Kuma ; lib/kuma-webhook.ts = incidents automatiques
-lib/prometheus.ts           client PromQL ; lib/metrics.ts = les requêtes
+lib/prometheus.ts           client PromQL ; lib/metrics.ts + lib/dashboard.ts = les requêtes
+lib/incident-stats.ts       statistiques calculées depuis le journal des incidents
 lib/db/                     schéma Drizzle, requêtes, seed
 drizzle/                    migrations SQL générées
 ```
@@ -55,22 +60,39 @@ Les services affichés sont définis dans [content/services.ts](content/services
 
 ## Développement local
 
+Prérequis : Node.js 22 et Docker (Docker Desktop sous Windows ou macOS, lancé).
+
 ```bash
-npm install
-cp .env.example .env
-npm run dev                 # http://localhost:3000
+npm install                 # une seule fois, puis après chaque changement de package.json
+npm run dev:local           # → http://localhost:3000
 ```
 
-Sans `.env`, le site tourne quand même et affiche chaque source comme indisponible.
+`dev:local` fait tout, dans l'ordre :
 
-Pour travailler avec les vraies données, ouvre un tunnel SSH vers les conteneurs. PostgreSQL ne doit **jamais** être publié sur Internet (voir l'incident correspondant) :
+1. démarre dans Docker (`docker-compose.dev.yml`) un PostgreSQL jetable (port 5433), plus Prometheus (port 9091) et Node Exporter : le dashboard affiche les vraies métriques de la machine qui fait tourner Docker ;
+2. applique les migrations ;
+3. charge les incidents de `lib/db/seed-data.ts` (avec `--sync` : le texte du fichier remplace celui de la base locale) ;
+4. lance `next dev`.
+
+La commande se relance autant de fois que nécessaire. Ctrl+C arrête le site, mais la base continue de tourner :
+
+```bash
+npm run dev:local -- stop   # arrête la base (données conservées)
+npm run dev:local -- reset  # supprime la base ; le prochain dev:local la recrée
+```
+
+Cette base locale est toujours utilisée, même si `.env` contient un autre `DATABASE_URL`. Le serveur n'est jamais touché. Sans Uptime Kuma en local, l'état des services s'affiche « ne répond pas » : c'est normal. Les courbes 24 h se remplissent au fil du temps (un point toutes les 15 min), et la tendance du disque apparaît après 24 h d'historique.
+
+### Avec les vraies données du serveur
+
+Pour voir l'état des services et les métriques réels, ouvre un tunnel SSH vers les conteneurs. PostgreSQL ne doit **jamais** être publié sur Internet :
 
 ```bash
 # IP des conteneurs : docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' postgres
 ssh -L 5432:<ip-postgres>:5432 -L 3001:<ip-uptime-kuma>:3001 -L 9090:<ip-prometheus>:9090 user@serveur
 ```
 
-puis dans `.env` : `localhost:5432`, `http://localhost:3001` et `http://localhost:9090`.
+Mets ensuite dans `.env` : `UPTIME_KUMA_URL=http://localhost:3001` et `PROMETHEUS_URL=http://localhost:9090`. `npm run dev:local` les utilise avec la base locale (un `PROMETHEUS_URL` dans `.env` remplace le Prometheus local). Pour lire aussi les incidents de la base du serveur, lance plutôt `npm run dev` avec `DATABASE_URL=postgres://status:...@localhost:5432/status`.
 
 ## Base de données
 

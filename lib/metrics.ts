@@ -9,8 +9,8 @@ import {
 } from "@/lib/prometheus";
 
 export const BAND_DAYS = 90;
-const DAY = 86_400;
-const SERIES_STEP = 900; // 15 min → 96 points over 24 h
+export const DAY = 86_400;
+export const SERIES_STEP = 900; // 15 min → 96 points over 24 h
 
 export type ServiceAvailability = {
   /** One 0–1 ratio per day, oldest first; null where Prometheus has no data. */
@@ -45,13 +45,13 @@ export type MetricsPayload = {
 
 // Node Exporter selector: optional extra matchers from the environment, for
 // a Prometheus that scrapes several hosts.
-function node(metric: string, matchers: string[] = []) {
+export function node(metric: string, matchers: string[] = []) {
   const extra = process.env.PROMETHEUS_NODE_SELECTOR?.trim();
   const all = [...matchers, ...(extra ? [extra] : [])];
   return all.length ? `${metric}{${all.join(",")}}` : metric;
 }
 
-const ROOT_FS = ['mountpoint="/"', 'fstype!~"tmpfs|overlay"'];
+export const ROOT_FS = ['mountpoint="/"', 'fstype!~"tmpfs|overlay"'];
 
 const Q = {
   cpu: `1 - avg(rate(${node("node_cpu_seconds_total", ['mode="idle"'])}[5m]))`,
