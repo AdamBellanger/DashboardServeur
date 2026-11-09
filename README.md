@@ -63,7 +63,7 @@ npm run dev                 # http://localhost:3000
 
 Sans `.env`, le site tourne quand même et affiche chaque source comme indisponible.
 
-Pour travailler avec les vraies données, ouvre un tunnel SSH vers les conteneurs. PostgreSQL ne doit **jamais** être publié sur Internet (voir l'incident correspondant) :
+Pour travailler avec les vraies données, ouvre un tunnel SSH vers les conteneurs. PostgreSQL ne doit **jamais** être publié sur Internet :
 
 ```bash
 # IP des conteneurs : docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' postgres
