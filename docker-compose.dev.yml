@@ -1,0 +1,26 @@
+# Local development only: a throwaway PostgreSQL for `npm run dev:local`.
+# Never used on the server (see docker-compose.yml for production).
+#
+# Port 5433 on the host, so it doesn't clash with a local PostgreSQL or with
+# an SSH tunnel to the server's database on 5432.
+name: status-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: status
+      POSTGRES_PASSWORD: status
+      POSTGRES_DB: status
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U status -d status"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  db:

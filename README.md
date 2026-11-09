@@ -55,22 +55,39 @@ Les services affichés sont définis dans [content/services.ts](content/services
 
 ## Développement local
 
+Prérequis : Node.js 22 et Docker (Docker Desktop sous Windows ou macOS, lancé).
+
 ```bash
-npm install
-cp .env.example .env
-npm run dev                 # http://localhost:3000
+npm install                 # une seule fois, puis après chaque changement de package.json
+npm run dev:local           # → http://localhost:3000
 ```
 
-Sans `.env`, le site tourne quand même et affiche chaque source comme indisponible.
+`dev:local` fait tout, dans l'ordre :
 
-Pour travailler avec les vraies données, ouvre un tunnel SSH vers les conteneurs. PostgreSQL ne doit **jamais** être publié sur Internet :
+1. démarre un PostgreSQL jetable dans Docker (`docker-compose.dev.yml`, port 5433) ;
+2. applique les migrations ;
+3. charge les incidents de `lib/db/seed-data.ts` (avec `--sync` : le texte du fichier remplace celui de la base locale) ;
+4. lance `next dev`.
+
+La commande se relance autant de fois que nécessaire. Ctrl+C arrête le site, mais la base continue de tourner :
+
+```bash
+npm run dev:local -- stop   # arrête la base (données conservées)
+npm run dev:local -- reset  # supprime la base ; le prochain dev:local la recrée
+```
+
+Cette base locale est toujours utilisée, même si `.env` contient un autre `DATABASE_URL`. Le serveur n'est jamais touché. Sans `.env`, Uptime Kuma et Prometheus s'affichent « ne répond pas » : c'est normal.
+
+### Avec les vraies données du serveur
+
+Pour voir l'état des services et les métriques réels, ouvre un tunnel SSH vers les conteneurs. PostgreSQL ne doit **jamais** être publié sur Internet :
 
 ```bash
 # IP des conteneurs : docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' postgres
 ssh -L 5432:<ip-postgres>:5432 -L 3001:<ip-uptime-kuma>:3001 -L 9090:<ip-prometheus>:9090 user@serveur
 ```
 
-puis dans `.env` : `localhost:5432`, `http://localhost:3001` et `http://localhost:9090`.
+Mets ensuite dans `.env` : `UPTIME_KUMA_URL=http://localhost:3001` et `PROMETHEUS_URL=http://localhost:9090`. `npm run dev:local` les utilise avec la base locale. Pour lire aussi les incidents de la base du serveur, lance plutôt `npm run dev` avec `DATABASE_URL=postgres://status:...@localhost:5432/status`.
 
 ## Base de données
 
