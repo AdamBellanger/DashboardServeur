@@ -1,8 +1,10 @@
-# Local development only: a throwaway PostgreSQL for `npm run dev:local`.
-# Never used on the server (see docker-compose.yml for production).
+# Local development only, for `npm run dev:local`: a throwaway PostgreSQL, plus
+# Prometheus and Node Exporter so the dashboard shows real metrics (those of
+# the machine running Docker). Never used on the server (see
+# docker-compose.yml for production).
 #
-# Port 5433 on the host, so it doesn't clash with a local PostgreSQL or with
-# an SSH tunnel to the server's database on 5432.
+# Host ports 5433 and 9091, so they don't clash with a local install or with
+# an SSH tunnel to the server (5432, 9090). Bound to 127.0.0.1 only.
 name: status-dev
 
 services:
@@ -22,5 +24,24 @@ services:
       timeout: 3s
       retries: 30
 
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    volumes:
+      - ./dev/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus:/prometheus
+    ports:
+      - "127.0.0.1:9091:9090"
+    depends_on:
+      - node-exporter
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    # Host filesystem, read-only, so the disk tile shows the real "/" instead
+    # of the container's overlay.
+    command: ["--path.rootfs=/host"]
+    volumes:
+      - /:/host:ro
+
 volumes:
   db:
+  prometheus:

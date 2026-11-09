@@ -14,7 +14,7 @@ import { site } from "@/content/site";
 import { href, type Route } from "@/lib/i18n";
 import { useLocale, usePublicPathname } from "@/lib/use-locale";
 
-const ROUTES: Route[] = ["home", "incidents", "about"];
+const ROUTES: Route[] = ["home", "dashboard", "incidents", "about"];
 
 // Header links slide up and fade out one after the other when the page scrolls.
 const HIDE_EASE = "ease-[cubic-bezier(0.16,1,0.3,1)]";

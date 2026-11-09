@@ -22,6 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const incidents = (await listIncidents("fr")) ?? [];
   return [
     ...entry("home", undefined, 1, "daily"),
+    ...entry("dashboard", undefined, 0.9, "daily"),
     ...entry("incidents", undefined, 0.8, "weekly"),
     ...entry("about", undefined, 0.6, "monthly"),
     ...incidents.flatMap((incident) => entry("incidents", incident.slug, 0.7, "monthly")),

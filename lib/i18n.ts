@@ -15,10 +15,11 @@ export const isLocale = (value: string | undefined): value is Locale =>
 /** Cookie remembering an explicit language choice (footer switch). */
 export const LOCALE_COOKIE = "lang";
 
-export type Route = "home" | "incidents" | "about";
+export type Route = "home" | "dashboard" | "incidents" | "about";
 
 const ROUTES: Record<Route, Record<Locale, string>> = {
   home: { fr: "/", en: "/en" },
+  dashboard: { fr: "/dashboard", en: "/en/dashboard" },
   incidents: { fr: "/incidents", en: "/en/incidents" },
   about: { fr: "/a-propos", en: "/en/about" },
 };
@@ -78,7 +79,7 @@ export function internalPath(pathname: string): string {
     const rest = locale === "en" ? pathname.slice(3) : pathname;
     return `/${locale}${rest === "/" ? "" : rest}`;
   }
-  const internal = { home: "", incidents: "/incidents", about: "/a-propos" }[match.route];
+  const internal = { home: "", dashboard: "/dashboard", incidents: "/incidents", about: "/a-propos" }[match.route];
   return `/${locale}${internal}${match.slug ? `/${match.slug}` : ""}`;
 }
 
