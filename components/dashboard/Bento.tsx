@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Reveal } from "@/components/ui/Reveal";
 import { SplitText } from "@/components/ui/SplitText";
 import { Sparkline } from "@/components/status/Sparkline";
 import { UptimeBands } from "@/components/status/UptimeBands";
 import { StatusDot, monitorTone, overallTone, severityTone } from "@/components/status/StatusDot";
-import { usePolled } from "@/components/status/usePolled";
+import { usePolled, usePolledState } from "@/components/status/usePolled";
 import { getDictionary } from "@/content/i18n/ui";
 import { services } from "@/content/services";
 import {
@@ -22,9 +22,18 @@ import {
 import { href, type Locale } from "@/lib/i18n";
 import type { DashboardPayload } from "@/lib/dashboard";
 import type { IncidentStats } from "@/lib/incident-stats";
+import type { RangeKey } from "@/lib/metrics";
 import type { StatusPayload } from "@/lib/status";
 
 const label = "font-mono text-[10px] uppercase tracking-widest text-muted";
+const RANGE_KEYS: RangeKey[] = ["24h", "7d", "30d"];
+const MAX_CONTAINERS = 12;
+
+/** Certificates: red in the last week (or invalid), amber in the last three. */
+const certTone = (days: number, valid: boolean | null) =>
+  valid === false || days <= 7 ? "down" : days <= 21 ? "warn" : "ok";
+const TONE_TEXT = { down: "text-down", warn: "text-warn", ok: "" } as const;
+const TONE_BG = { down: "bg-down", warn: "bg-warn", ok: "bg-accent" } as const;
 const big = "font-display text-5xl tracking-tight sm:text-6xl";
 
 function Tile({
@@ -67,11 +76,11 @@ function Meter({ value, tone = "bg-accent" }: { value: number | null; tone?: str
 }
 
 /** Two series on one shared scale (inbound / outbound). */
-function DualSparkline({ a, b }: { a: (number | null)[]; b: (number | null)[] }) {
+function DualSparkline({ a, b, className = "" }: { a: (number | null)[]; b: (number | null)[]; className?: string }) {
   const max = Math.max(0, ...[...a, ...b].filter((v): v is number => v !== null));
   const domain: [number, number] = [0, max * 1.2 || 1];
   return (
-    <div className="relative h-24 w-full">
+    <div className={`relative h-24 w-full ${className}`}>
       <Sparkline values={b} domain={domain} className="absolute inset-0 h-full w-full text-foreground/40" />
       <Sparkline values={a} domain={domain} className="absolute inset-0 h-full w-full text-accent" />
     </div>
@@ -98,7 +107,12 @@ export function Bento({
   const dict = getDictionary(locale);
   const t = dict.dashboard;
   const status = usePolled("/api/status", initialStatus, 30_000);
-  const { metrics, system } = usePolled("/api/dashboard", initialDashboard, 60_000);
+  const [range, setRange] = useState<RangeKey>(initialDashboard.range);
+  const { data, stale } = usePolledState(`/api/dashboard?range=${range}`, initialDashboard, 60_000);
+  const { metrics, system, certificates, containers } = data;
+  // Label of the period the charts on screen cover (the previous one while loading).
+  const rangeLabel = t.ranges[data.range];
+  const chart = `transition-opacity duration-300 ${stale ? "opacity-30" : ""}`;
   const server = metrics.server;
   const up = metrics.reachable;
 
@@ -131,6 +145,18 @@ export function Bento({
   const bootedAt = server.uptimeSeconds !== null ? Date.parse(status.checkedAt) - server.uptimeSeconds * 1000 : null;
   const severityTotal = stats ? stats.bySeverity.minor + stats.bySeverity.major + stats.bySeverity.critical : 0;
 
+  const nextCert = certificates.reduce<(typeof certificates)[number] | null>(
+    (soonest, c) => (soonest === null || c.daysRemaining < soonest.daysRemaining ? c : soonest),
+    null,
+  );
+  const certScale = Math.max(90, ...certificates.map((c) => c.daysRemaining));
+  const certText = (c: (typeof certificates)[number]) =>
+    c.valid === false ? t.certInvalid : c.daysRemaining < 0 ? t.certExpired : t.days(Math.floor(c.daysRemaining));
+  const serviceName = (key: string) => services.find((s) => s.key === key)?.name ?? key;
+
+  const shownContainers = containers.slice(0, MAX_CONTAINERS);
+  const maxContainerMem = Math.max(0, ...containers.map((c) => c.memBytes ?? 0));
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 pb-32 pt-40 sm:px-10 sm:pt-48">
       <header className="flex flex-col gap-6 px-2 sm:px-0">
@@ -151,7 +177,28 @@ export function Bento({
         )}
       </header>
 
-      <div className="mt-14 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
+      <Reveal delay={0.3} className="mt-14 flex items-center justify-between gap-4 px-2 sm:justify-end sm:px-0">
+        <p id="range-label" className={label}>
+          {t.rangeLabel}
+        </p>
+        <div role="group" aria-labelledby="range-label" className="flex rounded-full border border-foreground/15 p-1">
+          {RANGE_KEYS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={range === key}
+              onClick={() => setRange(key)}
+              className={`rounded-full px-4 py-1.5 font-mono text-xs transition-colors duration-300 ${
+                range === key ? "bg-foreground text-background" : "text-muted hover:text-foreground"
+              }`}
+            >
+              {t.ranges[key]}
+            </button>
+          ))}
+        </div>
+      </Reveal>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
         {/* ---- Availability ---- */}
         <Tile className="sm:col-span-2 lg:col-span-7 lg:row-span-2">
           <TileHead title={t.availability} />
@@ -196,7 +243,10 @@ export function Bento({
 
         {/* ---- CPU ---- */}
         <Tile className="lg:col-span-5" delay={0.05}>
-          <TileHead title={t.cpu} aside={system.cores !== null ? t.cores(system.cores) : undefined} />
+          <TileHead
+            title={t.cpu}
+            aside={system.cores !== null ? `${t.cores(system.cores)} · ${rangeLabel}` : rangeLabel}
+          />
           <div className="flex items-end justify-between gap-4">
             <p className={big}>{pct(server.cpu)}</p>
             <div className="text-right">
@@ -206,13 +256,13 @@ export function Bento({
               </p>
             </div>
           </div>
-          <Sparkline values={server.cpuSeries} domain={[0, 1]} className="h-12 w-full text-accent" />
+          <Sparkline key={data.range} values={server.cpuSeries} domain={[0, 1]} className={`h-12 w-full text-accent ${chart}`} />
           <Meter value={loadRatio} tone={loadRatio !== null && loadRatio > 1 ? "bg-warn" : "bg-accent"} />
         </Tile>
 
         {/* ---- Memory ---- */}
         <Tile className="lg:col-span-5" delay={0.1}>
-          <TileHead title={t.memory} aside={t.trend24h} />
+          <TileHead title={t.memory} aside={rangeLabel} />
           <div className="flex items-end justify-between gap-4">
             <p className={big}>{pct(memRatio)}</p>
             <p className="text-right font-mono text-sm">
@@ -220,7 +270,7 @@ export function Bento({
               <span className="block text-xs text-muted">{t.of(bytes(system.memTotalBytes))}</span>
             </p>
           </div>
-          <Sparkline values={server.ramSeries} domain={[0, 1]} className="h-12 w-full text-accent" />
+          <Sparkline key={data.range} values={server.ramSeries} domain={[0, 1]} className={`h-12 w-full text-accent ${chart}`} />
         </Tile>
 
         {/* ---- Disk ---- */}
@@ -253,14 +303,14 @@ export function Bento({
 
         {/* ---- Latency ---- */}
         <Tile className="sm:col-span-2 lg:col-span-4" delay={0.15}>
-          <TileHead title={t.latency} />
+          <TileHead title={t.latency} aside={rangeLabel} />
           <p className={big}>{ms(latencyNow)}</p>
-          <Sparkline values={server.latencySeries} className="mt-auto h-14 w-full text-accent" />
+          <Sparkline key={data.range} values={server.latencySeries} className={`mt-auto h-14 w-full text-accent ${chart}`} />
         </Tile>
 
         {/* ---- Network ---- */}
         <Tile className="sm:col-span-2 lg:col-span-7" delay={0.05}>
-          <TileHead title={t.network} aside={t.trend24h} />
+          <TileHead title={t.network} aside={rangeLabel} />
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
             {[
               { name: t.inbound, value: rate(system.netRx), dot: "bg-accent" },
@@ -285,11 +335,11 @@ export function Bento({
               </div>
             ))}
           </div>
-          <DualSparkline a={system.rxSeries} b={system.txSeries} />
+          <DualSparkline key={data.range} a={system.rxSeries} b={system.txSeries} className={chart} />
         </Tile>
 
         {/* ---- Incidents ---- */}
-        <Tile className="sm:col-span-2 lg:col-span-5" delay={0.1}>
+        <Tile className="sm:col-span-2 lg:col-span-5 lg:row-span-2" delay={0.1}>
           <TileHead title={t.incidents} />
           {stats === null ? (
             <p className="text-muted">{t.dbDown}</p>
@@ -368,6 +418,64 @@ export function Bento({
             </>
           )}
         </Tile>
+
+        {/* ---- TLS certificates ---- */}
+        <Tile className="sm:col-span-2 lg:col-span-7" delay={0.05}>
+          <TileHead title={t.certificates} aside={certificates.length > 0 ? t.certSource : undefined} />
+          {nextCert === null ? (
+            <p className="text-muted">{t.certNoData}</p>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-end sm:gap-10">
+              <div>
+                <p className={label}>{t.certNext}</p>
+                <p className={`mt-2 ${big} ${TONE_TEXT[certTone(nextCert.daysRemaining, nextCert.valid)]}`}>
+                  {certText(nextCert)}
+                </p>
+                <p className="mt-2 text-sm text-muted">{serviceName(nextCert.key)}</p>
+              </div>
+              <ul className="flex flex-col border-b border-foreground/10">
+                {certificates.map((cert) => {
+                  const tone = certTone(cert.daysRemaining, cert.valid);
+                  return (
+                    <li
+                      key={cert.key}
+                      className="grid grid-cols-[6rem_1fr_auto] items-center gap-4 border-t border-foreground/10 py-3 text-sm"
+                    >
+                      <span className="truncate">{serviceName(cert.key)}</span>
+                      <Meter value={cert.daysRemaining / certScale} tone={TONE_BG[tone]} />
+                      <span className={`w-16 text-right font-mono text-xs ${TONE_TEXT[tone]}`}>{certText(cert)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </Tile>
+
+        {/* ---- Containers (only when cAdvisor is scraped) ---- */}
+        {containers.length > 0 && (
+          <Tile className="sm:col-span-2 lg:col-span-12" delay={0.05}>
+            <TileHead title={t.containers} aside={t.containersRunning(containers.length)} />
+            <ul className="grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
+              {shownContainers.map((c) => (
+                <li key={c.name} className="flex flex-col gap-2.5 border-t border-foreground/10 py-3.5">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="truncate font-mono text-sm">{c.name}</span>
+                    <span className="shrink-0 font-mono text-xs text-muted">
+                      {t.containerCpu(pct(c.cpu, 1))} · {bytes(c.memBytes)}
+                    </span>
+                  </div>
+                  <Meter value={maxContainerMem > 0 && c.memBytes !== null ? c.memBytes / maxContainerMem : null} />
+                </li>
+              ))}
+            </ul>
+            <p className={label}>
+              {t.containersHint}
+              {containers.length > shownContainers.length &&
+                ` · ${t.containersMore(containers.length - shownContainers.length)}`}
+            </p>
+          </Tile>
+        )}
       </div>
     </div>
   );

@@ -5,7 +5,8 @@
 //   npm run dev:local -- reset delete them and their data (next start re-creates them)
 //
 // Needs Docker (Docker Desktop on Windows/macOS). Works the same on every OS.
-// Containers: docker-compose.dev.yml (PostgreSQL, Prometheus, Node Exporter).
+// Containers: docker-compose.dev.yml (PostgreSQL, Prometheus, Node Exporter,
+// and cAdvisor when it can run).
 // DATABASE_URL always points at the local database, even if .env holds
 // another one. PROMETHEUS_URL from .env wins (e.g. an SSH tunnel to the
 // server); without it, the local Prometheus is used. The rest of .env applies.
@@ -13,6 +14,8 @@
 import { spawn, spawnSync } from "node:child_process";
 
 const COMPOSE = ["compose", "-f", "docker-compose.dev.yml"];
+// cAdvisor sits in its own profile: started separately, and optional.
+const COMPOSE_ALL = [...COMPOSE, "--profile", "containers"];
 const DATABASE_URL = "postgres://status:status@localhost:5433/status";
 const LOCAL_PROMETHEUS_URL = "http://localhost:9091";
 const isWindows = process.platform === "win32";
@@ -38,6 +41,12 @@ function run(cmd, args, env = {}) {
   }
 }
 
+/** Same, but a failure is only reported: returns false instead of exiting. */
+function tryRun(cmd, args) {
+  const result = spawnSync(cmd, args, { stdio: "ignore", shell: isWindows });
+  return !result.error && result.status === 0;
+}
+
 function dockerAvailable() {
   const result = spawnSync("docker", ["info"], { stdio: "ignore", shell: isWindows });
   return !result.error && result.status === 0;
@@ -51,13 +60,13 @@ if (!dockerAvailable()) {
 
 if (command === "stop") {
   step("Arrêt des conteneurs locaux (les données sont conservées)");
-  run("docker", [...COMPOSE, "stop"]);
+  run("docker", [...COMPOSE_ALL, "stop"]);
   process.exit(0);
 }
 
 if (command === "reset") {
   step("Suppression des conteneurs et des données locales");
-  run("docker", [...COMPOSE, "down", "--volumes"]);
+  run("docker", [...COMPOSE_ALL, "down", "--volumes"]);
   process.exit(0);
 }
 
@@ -72,6 +81,9 @@ const env = { DATABASE_URL, PROMETHEUS_URL: process.env.PROMETHEUS_URL || LOCAL_
 
 step("1/4 Conteneurs locaux : PostgreSQL (5433), Prometheus (9091), Node Exporter");
 run("docker", [...COMPOSE, "up", "-d", "--wait"]);
+if (!tryRun("docker", [...COMPOSE_ALL, "up", "-d", "cadvisor"])) {
+  console.log("cAdvisor n'a pas pu démarrer : la tuile « Conteneurs » restera masquée, le reste fonctionne.");
+}
 
 step("2/4 Migrations");
 run("npx", ["drizzle-kit", "migrate"], env);

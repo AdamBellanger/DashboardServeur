@@ -60,19 +60,22 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Sparklines draw themselves once, left to right. */
+/* Sparklines draw themselves once, left to right. The dash pattern only
+   exists during the animation: kept afterwards, it leaves gaps in wide
+   charts (non-scaling strokes measure dashes in screen pixels). */
 @keyframes draw {
   from {
+    stroke-dasharray: 1;
     stroke-dashoffset: 1;
   }
   to {
+    stroke-dasharray: 1;
     stroke-dashoffset: 0;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .animate-draw {
-    stroke-dasharray: 1;
-    animation: draw 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    animation: draw 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
   }
 }

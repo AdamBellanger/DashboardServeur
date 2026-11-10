@@ -1,7 +1,7 @@
 # Local development only (docker-compose.dev.yml): scrapes the Node Exporter
-# container so `npm run dev:local` shows real CPU, memory, disk and network
-# figures, those of the Docker machine. Production Prometheus lives on the
-# server and is configured there (see README).
+# and cAdvisor containers so `npm run dev:local` shows real CPU, memory, disk,
+# network and per-container figures, those of the Docker machine. Production
+# Prometheus lives on the server and is configured there (see README).
 global:
   scrape_interval: 15s
 
@@ -9,3 +9,7 @@ scrape_configs:
   - job_name: node
     static_configs:
       - targets: ["node-exporter:9100"]
+  # Optional: the target is simply down when cAdvisor isn't running.
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]

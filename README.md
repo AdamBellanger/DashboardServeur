@@ -28,6 +28,8 @@ Navigateur ──► status (Next.js) ──► Uptime Kuma   /api/status-page/<
 | Bandes de disponibilité 90 j, uptime 30/90 j, latence 24 h | Prometheus, métriques `/metrics` d'Uptime Kuma |
 | CPU, mémoire, disque, uptime serveur | Prometheus, Node Exporter |
 | Dashboard : charge, mémoire et disque en octets, tendance du disque, réseau, connexions TCP | Prometheus, Node Exporter |
+| Dashboard : certificats SSL (jours avant expiration) | Prometheus, métriques `/metrics` d'Uptime Kuma |
+| Dashboard : CPU et mémoire par conteneur (tuile masquée sans cAdvisor) | Prometheus, cAdvisor (optionnel) |
 | Dashboard : jours sans incident, résolution moyenne, répartition par gravité | PostgreSQL, calculé depuis les incidents |
 | Incidents | PostgreSQL (Drizzle) : ouverts/fermés automatiquement par le webhook Uptime Kuma, ou écrits à la main |
 
@@ -69,7 +71,7 @@ npm run dev:local           # → http://localhost:3000
 
 `dev:local` fait tout, dans l'ordre :
 
-1. démarre dans Docker (`docker-compose.dev.yml`) un PostgreSQL jetable (port 5433), plus Prometheus (port 9091) et Node Exporter : le dashboard affiche les vraies métriques de la machine qui fait tourner Docker ;
+1. démarre dans Docker (`docker-compose.dev.yml`) un PostgreSQL jetable (port 5433), plus Prometheus (port 9091), Node Exporter et cAdvisor : le dashboard affiche les vraies métriques de la machine qui fait tourner Docker et de ses conteneurs. cAdvisor est optionnel : s'il ne démarre pas sur ta machine, la commande continue et la tuile « Conteneurs » reste masquée ;
 2. applique les migrations ;
 3. charge les incidents de `lib/db/seed-data.ts` (avec `--sync` : le texte du fichier remplace celui de la base locale) ;
 4. lance `next dev`.
@@ -81,7 +83,7 @@ npm run dev:local -- stop   # arrête la base (données conservées)
 npm run dev:local -- reset  # supprime la base ; le prochain dev:local la recrée
 ```
 
-Cette base locale est toujours utilisée, même si `.env` contient un autre `DATABASE_URL`. Le serveur n'est jamais touché. Sans Uptime Kuma en local, l'état des services s'affiche « ne répond pas » : c'est normal. Les courbes 24 h se remplissent au fil du temps (un point toutes les 15 min), et la tendance du disque apparaît après 24 h d'historique.
+Cette base locale est toujours utilisée, même si `.env` contient un autre `DATABASE_URL`. Le serveur n'est jamais touché. Sans Uptime Kuma en local, l'état des services s'affiche « ne répond pas » : c'est normal. Les courbes (24 h, 7 j ou 30 j au choix) se remplissent au fil du temps, et la tendance du disque apparaît après 24 h d'historique. Les certificats SSL viennent d'Uptime Kuma : pas de données en local.
 
 ### Avec les vraies données du serveur
 
@@ -188,7 +190,39 @@ Par défaut, Prometheus ne garde que **15 jours** de données. Pour remplir les 
 
 Si Prometheus scrape plusieurs machines, restreindre les séries Node Exporter avec `PROMETHEUS_NODE_SELECTOR`, par exemple `instance="node-exporter:9100"`.
 
-### 4. DNS + Nginx Proxy Manager
+### 4. cAdvisor (optionnel) : tuile « Conteneurs »
+
+Sans cAdvisor, le dashboard masque simplement cette tuile. Pour l'afficher, lancer cAdvisor sur le réseau Docker, sans port publié :
+
+```yaml
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: cadvisor
+    restart: unless-stopped
+    command:
+      - --docker_only=true
+      - --store_container_labels=false
+      - --housekeeping_interval=30s
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - services_default
+```
+
+puis l'ajouter aux cibles de Prometheus :
+
+```yaml
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+```
+
+Attention : les **noms de tous les conteneurs** deviennent alors publics sur `/dashboard`. Pour n'en montrer qu'une partie, définir `PROMETHEUS_CONTAINER_SELECTOR` dans `.env`, par exemple `name=~"status|portfolio|polytrack"`.
+
+### 5. DNS + Nginx Proxy Manager
 
 - **Namecheap :** enregistrement `A` `status` → IP du serveur, ou `CNAME` `status` → `adambellanger.pro`.
 - **NPM → Proxy Host :**
