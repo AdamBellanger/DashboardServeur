@@ -160,7 +160,7 @@ Puis, après le premier `./deploy.sh` (qui applique les migrations) : `docker co
 
 ### 2. Uptime Kuma
 
-- Un monitor par service de `content/services.ts`, avec exactement les mêmes noms : `Portfolio`, `Status`, `Polytrack`, `Mail`.
+- Un monitor par service de `content/services.ts`, avec exactement les mêmes noms : `Portfolio`, `Polytrack`, `Mail`.
 - Ces monitors placés sur la page de statut publique `infra` (Status Pages). Le slug va dans `UPTIME_KUMA_STATUS_SLUG`.
 - Créer une **clé API** (Settings → API Keys) pour que Prometheus puisse lire `/metrics`.
 - **Incidents automatiques** : Settings → Notifications → Setup Notification :
@@ -169,7 +169,7 @@ Puis, après le premier `./deploy.sh` (qui applique les migrations) : `docker co
   - Request body : preset `application/json`.
   - Additional Headers : `{"Authorization": "Bearer <UPTIME_KUMA_WEBHOOK_SECRET>"}`.
 
-  Ensuite, active cette notification sur les 4 monitors publics, puis clique sur « Test » : la réponse attendue est `{"action":"test"}`.
+  Ensuite, active cette notification sur ces monitors publics, puis clique sur « Test » : la réponse attendue est `{"action":"test"}`.
 - Régler **Retries** à 2 ou 3 sur ces monitors, pour qu'une seule sonde ratée n'ouvre pas d'incident.
 
 ### 3. Prometheus
