@@ -61,10 +61,10 @@ export const services: Service[] = [
     },
   },
   {
-    key: "enclume",
-    name: "Enclume",
+    key: "anvil",
+    name: "Anvil",
     host: "enclume.adambellanger.pro",
-    monitor: "Enclume",
+    monitor: "Anvil",
     description: {
       fr: "Application web.",
       en: "Web app.",
