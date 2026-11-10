@@ -41,6 +41,66 @@ export const services: Service[] = [
     },
   },
   {
+    key: "qrdrop",
+    name: "QRDrop",
+    host: "qrdrop.online",
+    monitor: "QRDrop",
+    description: {
+      fr: "Générateur de QR codes.",
+      en: "QR code generator.",
+    },
+  },
+  {
+    key: "ai",
+    name: "AI",
+    host: "ai.adambellanger.pro",
+    monitor: "AI",
+    description: {
+      fr: "Assistant IA auto-hébergé.",
+      en: "Self-hosted AI assistant.",
+    },
+  },
+  {
+    key: "enclume",
+    name: "Enclume",
+    host: "enclume.adambellanger.pro",
+    monitor: "Enclume",
+    description: {
+      fr: "Application web.",
+      en: "Web app.",
+    },
+  },
+  {
+    key: "excalidraw",
+    name: "Excalidraw",
+    host: "excalidraw.adambellanger.pro",
+    monitor: "Excalidraw",
+    description: {
+      fr: "Tableau blanc collaboratif.",
+      en: "Collaborative whiteboard.",
+    },
+  },
+  {
+    key: "whisper",
+    name: "Whisper",
+    host: "whisper.adambellanger.pro",
+    monitor: "Whisper",
+    description: {
+      fr: "Transcription audio.",
+      en: "Audio transcription.",
+    },
+  },
+  {
+    key: "outils",
+    name: "Outils",
+    host: "outils.adambellanger.pro",
+    monitor: "Outils",
+    description: {
+      fr: "Boîte à outils web (IT-Tools).",
+      en: "Web toolbox (IT-Tools).",
+    },
+  },
+  {
     key: "mail",
     name: "Mail",
     host: null,

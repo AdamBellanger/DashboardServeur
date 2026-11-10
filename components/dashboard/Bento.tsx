@@ -256,7 +256,7 @@ export function Bento({
               </p>
             </div>
           </div>
-          <Sparkline key={data.range} values={server.cpuSeries} domain={[0, 1]} className={`h-12 w-full text-accent ${chart}`} />
+          <Sparkline key={data.range} values={server.cpuSeries} domain={[0, 1]} className={`min-h-12 w-full flex-1 text-accent ${chart}`} />
           <Meter value={loadRatio} tone={loadRatio !== null && loadRatio > 1 ? "bg-warn" : "bg-accent"} />
         </Tile>
 
@@ -270,7 +270,7 @@ export function Bento({
               <span className="block text-xs text-muted">{t.of(bytes(system.memTotalBytes))}</span>
             </p>
           </div>
-          <Sparkline key={data.range} values={server.ramSeries} domain={[0, 1]} className={`h-12 w-full text-accent ${chart}`} />
+          <Sparkline key={data.range} values={server.ramSeries} domain={[0, 1]} className={`min-h-12 w-full flex-1 text-accent ${chart}`} />
         </Tile>
 
         {/* ---- Disk ---- */}
