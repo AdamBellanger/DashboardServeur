@@ -160,7 +160,7 @@ Puis, après le premier `./deploy.sh` (qui applique les migrations) : `docker co
 
 ### 2. Uptime Kuma
 
-- Un monitor par service de `content/services.ts`, avec exactement les mêmes noms : `Portfolio`, `Polytrack`, `QRDrop`, `AI`, `Enclume`, `Excalidraw`, `Whisper`, `Outils`, `Mail`.
+- Un monitor par service de `content/services.ts`, avec exactement les mêmes noms : `Portfolio`, `Polytrack`, `QRDrop`, `AI`, `Anvil`, `Excalidraw`, `Whisper`, `Outils`, `Mail`.
 - Ces monitors placés sur la page de statut publique `infra` (Status Pages). Le slug va dans `UPTIME_KUMA_STATUS_SLUG`.
 - Créer une **clé API** (Settings → API Keys) pour que Prometheus puisse lire `/metrics`.
 - **Incidents automatiques** : Settings → Notifications → Setup Notification :
