@@ -1,7 +1,7 @@
 # Local development only, for `npm run dev:local`: a throwaway PostgreSQL, plus
-# Prometheus and Node Exporter so the dashboard shows real metrics (those of
-# the machine running Docker). Never used on the server (see
-# docker-compose.yml for production).
+# Prometheus, Node Exporter and cAdvisor so the dashboard shows real metrics
+# (those of the machine running Docker and of its containers). Never used on
+# the server (see docker-compose.yml for production).
 #
 # Host ports 5433 and 9091, so they don't clash with a local install or with
 # an SSH tunnel to the server (5432, 9090). Bound to 127.0.0.1 only.
@@ -41,6 +41,24 @@ services:
     command: ["--path.rootfs=/host"]
     volumes:
       - /:/host:ro
+
+  # Per-container CPU and memory. Optional (profile): dev-local.mjs starts it
+  # separately and carries on if it can't run on this machine; the dashboard
+  # then simply has no "Containers" tile.
+  cadvisor:
+    profiles: ["containers"]
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    command:
+      - --docker_only=true
+      - --store_container_labels=false
+      - --housekeeping_interval=15s
+      - --disable_metrics=percpu,sched,tcp,udp,disk,diskIO,hugetlb,referenced_memory,cpu_topology,resctrl,process,advtcp,memory_numa
+      - --containerd=${CADVISOR_CONTAINERD_SOCK:-/run/containerd/containerd.sock}
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
 
 volumes:
   db:

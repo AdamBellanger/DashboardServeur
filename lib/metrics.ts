@@ -10,7 +10,39 @@ import {
 
 export const BAND_DAYS = 90;
 export const DAY = 86_400;
-export const SERIES_STEP = 900; // 15 min → 96 points over 24 h
+
+const ALIGN = 900;
+
+// Periods the charts can cover. Each one draws 85 to 97 points, so a curve
+// looks the same whatever the period.
+export const RANGES = {
+  "24h": { seconds: DAY, step: 900, resolution: "5m" },
+  "7d": { seconds: 7 * DAY, step: 7200, resolution: "5m" },
+  "30d": { seconds: 30 * DAY, step: 28_800, resolution: "15m" },
+} as const;
+export type RangeKey = keyof typeof RANGES;
+export const DEFAULT_RANGE: RangeKey = "24h";
+export const isRangeKey = (value: string | null | undefined): value is RangeKey =>
+  value != null && Object.hasOwn(RANGES, value);
+
+/** Aligned start/end/step of a period, ending now. */
+export function seriesWindow(range: RangeKey, now = Math.floor(Date.now() / 1000)) {
+  const { seconds, step } = RANGES[range];
+  // Aligned timestamps keep the query URLs, hence the fetch cache, stable.
+  // Always on 15 min, whatever the step: a 30-day chart still ends "now", not
+  // up to 8 hours ago.
+  const end = Math.floor(now / ALIGN) * ALIGN;
+  return { start: end - seconds, end, step };
+}
+
+/**
+ * Expression to chart over a period. Beyond 24 h a point stands for hours:
+ * it gets the mean over its whole step, not a sample taken at its timestamp.
+ */
+export function charted(expr: string, range: RangeKey) {
+  const { step, resolution } = RANGES[range];
+  return range === "24h" ? expr : `avg_over_time((${expr})[${step}s:${resolution}])`;
+}
 
 export type ServiceAvailability = {
   /** One 0–1 ratio per day, oldest first; null where Prometheus has no data. */
@@ -65,13 +97,13 @@ const mean = (values: (number | null)[]) => {
   return known.length ? known.reduce((a, b) => a + b, 0) / known.length : null;
 };
 
-export async function getMetrics(): Promise<MetricsPayload> {
+/** `range` only changes the three series; everything else is "now" or fixed (bands, 24 h latency). */
+export async function getMetrics(range: RangeKey = DEFAULT_RANGE): Promise<MetricsPayload> {
   const now = Math.floor(Date.now() / 1000);
   // Aligned timestamps keep the query URLs, hence the fetch cache, stable.
   const bandsEnd = Math.floor(now / 3600) * 3600;
-  const seriesEnd = Math.floor(now / SERIES_STEP) * SERIES_STEP;
   const bandsRange = { start: bandsEnd - (BAND_DAYS - 1) * DAY, end: bandsEnd, step: DAY };
-  const seriesRange = { start: seriesEnd - DAY, end: seriesEnd, step: SERIES_STEP };
+  const seriesRange = seriesWindow(range, now);
 
   const empty: MetricsPayload = {
     reachable: false,
@@ -95,13 +127,13 @@ export async function getMetrics(): Promise<MetricsPayload> {
       `avg by (monitor_name) (avg_over_time((monitor_response_time{${monitors}} > 0)[24h:5m]))`,
       "monitor_name",
     ),
-    queryRange(`avg(monitor_response_time{${monitors}} > 0)`, seriesRange),
+    queryRange(charted(`avg(monitor_response_time{${monitors}} > 0)`, range), seriesRange),
     queryValue(Q.cpu),
     queryValue(Q.ram),
     queryValue(Q.disk),
     queryValue(Q.uptime),
-    queryRange(Q.cpu, seriesRange),
-    queryRange(Q.ram, seriesRange),
+    queryRange(charted(Q.cpu, range), seriesRange),
+    queryRange(charted(Q.ram, range), seriesRange),
   ]);
 
   const availability: Record<string, ServiceAvailability> = {};

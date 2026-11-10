@@ -17,6 +17,8 @@ export type Service = {
 // Public services listed on the dashboard, in display order. Each one must be
 // on the Uptime Kuma status page (UPTIME_KUMA_STATUS_SLUG) to get a live state;
 // an unmatched monitor name simply shows as "no data".
+// This site itself (status.adambellanger.pro) isn't listed: if it's down,
+// nobody can read the page that would say so.
 export const services: Service[] = [
   {
     key: "portfolio",
@@ -26,16 +28,6 @@ export const services: Service[] = [
     description: {
       fr: "Site personnel, Next.js en conteneur Docker.",
       en: "Personal site, Next.js in a Docker container.",
-    },
-  },
-  {
-    key: "status",
-    name: "Status",
-    host: "status.adambellanger.pro",
-    monitor: "Status",
-    description: {
-      fr: "Cette page.",
-      en: "This page.",
     },
   },
   {
